@@ -12,11 +12,18 @@ export default function ChatApp() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load chats from localStorage on mount
   useEffect(() => {
     const savedChats = localStorage.getItem("ai-tutor-chats");
+    const savedSidebarWidth = localStorage.getItem("ai-tutor-sidebar-width");
+
+    if (savedSidebarWidth) {
+      setSidebarWidth(Number.parseInt(savedSidebarWidth));
+    }
+
     if (savedChats) {
       const parsedChats = JSON.parse(savedChats).map((chat: any) => ({
         ...chat,
@@ -28,7 +35,6 @@ export default function ChatApp() {
         })),
       }));
 
-      // Filter out empty chats ONLY on initial load
       const nonEmptyChats = parsedChats.filter(
         (chat: Chat) => chat.messages.length > 0
       );
@@ -37,7 +43,6 @@ export default function ChatApp() {
         setChats(nonEmptyChats);
         setActiveChat(nonEmptyChats[0].id);
       } else {
-        // If no non-empty chats exist, create one new chat
         const newChat: Chat = {
           id: Date.now().toString(),
           title: "New conversation",
@@ -49,7 +54,6 @@ export default function ChatApp() {
         setActiveChat(newChat.id);
       }
     } else {
-      // No saved chats, create a new one
       const newChat: Chat = {
         id: Date.now().toString(),
         title: "New conversation",
@@ -63,12 +67,17 @@ export default function ChatApp() {
     setIsInitialized(true);
   }, []);
 
-  // Save chats to localStorage whenever chats change (but only after initialization)
+  // Save chats to localStorage whenever chats change
   useEffect(() => {
     if (isInitialized && chats.length > 0) {
       localStorage.setItem("ai-tutor-chats", JSON.stringify(chats));
     }
   }, [chats, isInitialized]);
+
+  // Save sidebar width to localStorage
+  useEffect(() => {
+    localStorage.setItem("ai-tutor-sidebar-width", sidebarWidth.toString());
+  }, [sidebarWidth]);
 
   const createNewChat = () => {
     const newChat: Chat = {
@@ -99,7 +108,6 @@ export default function ChatApp() {
       if (activeChat === chatId && filtered.length > 0) {
         setActiveChat(filtered[0].id);
       } else if (filtered.length === 0) {
-        // If no chats left, create a new one
         const newChat: Chat = {
           id: Date.now().toString(),
           title: "New conversation",
@@ -112,6 +120,10 @@ export default function ChatApp() {
       }
       return filtered;
     });
+  };
+
+  const renameChat = (chatId: string, newTitle: string) => {
+    updateChat(chatId, { title: newTitle });
   };
 
   const addMessage = (chatId: string, message: Message) => {
@@ -133,15 +145,14 @@ export default function ChatApp() {
 
   const updateChatTitle = (chatId: string, firstMessage: string) => {
     const title =
-      firstMessage.length > 40
-        ? firstMessage.substring(0, 40) + "..."
+      firstMessage.length > 30
+        ? firstMessage.substring(0, 30) + "..."
         : firstMessage;
     updateChat(chatId, { title });
   };
 
   const currentChat = chats.find((chat) => chat.id === activeChat);
 
-  // Don't render anything until initialized
   if (!isInitialized) {
     return (
       <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 items-center justify-center">
@@ -164,7 +175,7 @@ export default function ChatApp() {
         {sidebarOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
+            animate={{ width: sidebarWidth, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden border-r border-slate-200 dark:border-slate-800"
@@ -174,7 +185,10 @@ export default function ChatApp() {
               activeChat={activeChat}
               onSelectChat={setActiveChat}
               onDeleteChat={deleteChat}
+              onRenameChat={renameChat}
               onNewChat={createNewChat}
+              width={sidebarWidth}
+              onWidthChange={setSidebarWidth}
             />
           </motion.div>
         )}
