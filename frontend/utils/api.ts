@@ -26,7 +26,6 @@ export const chatApi = {
 
       const data = await response.json()
       return data
-      // return data['response']
     } catch (error) {
       console.error("API Error:", error)
       throw new Error("Failed to send message to backend")

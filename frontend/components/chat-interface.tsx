@@ -28,6 +28,88 @@ interface ChatInterfaceProps {
   onUpdateTitle: (chatId: string, firstMessage: string) => void;
 }
 
+// Simple math renderer component that works reliably
+const MathRenderer = ({
+  children,
+  display = false,
+}: {
+  children: string;
+  display?: boolean;
+}) => {
+  const [rendered, setRendered] = useState<string>("");
+
+  useEffect(() => {
+    // Ensure children is a string
+    const mathContent = String(children || "");
+
+    // Simple math rendering for common cases
+    const processedContent = mathContent
+      // Superscripts
+      .replace(/\^(\w+|\{[^}]+\})/g, (match, exp) => {
+        const cleanExp = exp.replace(/[{}]/g, "");
+        return `<sup>${cleanExp}</sup>`;
+      })
+      // Subscripts
+      .replace(/_(\w+|\{[^}]+\})/g, (match, sub) => {
+        const cleanSub = sub.replace(/[{}]/g, "");
+        return `<sub>${cleanSub}</sub>`;
+      })
+      // Fractions
+      .replace(
+        /\\frac\{([^}]+)\}\{([^}]+)\}/g,
+        '<span class="fraction"><span class="numerator">$1</span><span class="denominator">$2</span></span>'
+      )
+      // Square roots
+      .replace(/\\sqrt\{([^}]+)\}/g, "√($1)")
+      // Common symbols
+      .replace(/\\int/g, "∫")
+      .replace(/\\sum/g, "∑")
+      .replace(/\\prod/g, "∏")
+      .replace(/\\lim/g, "lim")
+      .replace(/\\infty/g, "∞")
+      .replace(/\\alpha/g, "α")
+      .replace(/\\beta/g, "β")
+      .replace(/\\gamma/g, "γ")
+      .replace(/\\delta/g, "δ")
+      .replace(/\\epsilon/g, "ε")
+      .replace(/\\theta/g, "θ")
+      .replace(/\\lambda/g, "λ")
+      .replace(/\\mu/g, "μ")
+      .replace(/\\pi/g, "π")
+      .replace(/\\sigma/g, "σ")
+      .replace(/\\phi/g, "φ")
+      .replace(/\\omega/g, "ω")
+      .replace(/\\leq/g, "≤")
+      .replace(/\\geq/g, "≥")
+      .replace(/\\neq/g, "≠")
+      .replace(/\\approx/g, "≈")
+      .replace(/\\pm/g, "±")
+      .replace(/\\times/g, "×")
+      .replace(/\\div/g, "÷")
+      .replace(/\\cdot/g, "·");
+
+    setRendered(processedContent);
+  }, [children]);
+
+  if (display) {
+    return (
+      <div className="my-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+        <div
+          className="text-center text-lg font-mono"
+          dangerouslySetInnerHTML={{ __html: rendered }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <span
+      className="font-mono mx-1 text-violet-600 dark:text-violet-400"
+      dangerouslySetInnerHTML={{ __html: rendered }}
+    />
+  );
+};
+
 export function ChatInterface({
   chat,
   onAddMessage,
@@ -285,8 +367,60 @@ export function ChatInterface({
     ),
   };
 
+  // Process message content to handle math
+  const processMessageContent = (content: string) => {
+    // Ensure content is a string
+    const textContent = String(content || "");
+
+    // Split content by math delimiters and process each part
+    const parts = textContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith("$$") && part.endsWith("$$")) {
+        return (
+          <MathRenderer key={index} display>
+            {part.slice(2, -2)}
+          </MathRenderer>
+        );
+      } else if (part.startsWith("$") && part.endsWith("$")) {
+        return <MathRenderer key={index}>{part.slice(1, -1)}</MathRenderer>;
+      } else {
+        return (
+          <ReactMarkdown
+            key={index}
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
+            {part}
+          </ReactMarkdown>
+        );
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Custom CSS for fractions */}
+      <style jsx>{`
+        .fraction {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          font-size: 0.9em;
+          margin: 0 2px;
+          vertical-align: middle;
+        }
+        .numerator {
+          border-bottom: 1px solid currentColor;
+          padding-bottom: 1px;
+          line-height: 1;
+        }
+        .denominator {
+          padding-top: 1px;
+          line-height: 1;
+        }
+      `}</style>
+
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="max-w-4xl mx-auto space-y-6">
@@ -401,12 +535,7 @@ export function ChatInterface({
                           </div>
                         ) : (
                           <div className="prose prose-sm max-w-none dark:prose-invert prose-violet [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={markdownComponents}
-                            >
-                              {message.content}
-                            </ReactMarkdown>
+                            {processMessageContent(message.content)}
                           </div>
                         )}
                       </motion.div>
