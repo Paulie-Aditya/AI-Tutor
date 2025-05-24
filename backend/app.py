@@ -8,6 +8,11 @@ load_dotenv()
 def hello():
     return {"message":"hello world"}
 
+@app.route("/ask", methods=["GET"])
+def ask_question():
+    data = request.args
+    question = data.get("question")
+    
 
 if __name__ == "__main__":
     app.run(debug=True)

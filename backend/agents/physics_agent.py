@@ -1,7 +1,5 @@
-# physics_agent.py
-
 from .base_agent import BaseAgent
-from backend.tools.constants import PHYSICS_CONSTANTS
+from tools.constants import PHYSICS_CONSTANTS
 import difflib
 
 class PhysicsAgent(BaseAgent):
