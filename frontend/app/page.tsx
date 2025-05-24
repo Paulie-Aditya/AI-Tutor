@@ -66,7 +66,6 @@ export default function ChatApp() {
   // Save chats to localStorage whenever chats change (but only after initialization)
   useEffect(() => {
     if (isInitialized && chats.length > 0) {
-      console.log("Saving chats to localStorage:", chats);
       localStorage.setItem("ai-tutor-chats", JSON.stringify(chats));
     }
   }, [chats, isInitialized]);
@@ -90,7 +89,6 @@ export default function ChatApp() {
           ? { ...chat, ...updates, updatedAt: new Date() }
           : chat
       );
-      console.log("Updated chats:", updated);
       return updated;
     });
   };
@@ -117,12 +115,10 @@ export default function ChatApp() {
   };
 
   const addMessage = (chatId: string, message: Message) => {
-    console.log("Adding message:", message, "to chat:", chatId);
     setChats((prev) => {
       const updated = prev.map((chat) => {
         if (chat.id === chatId) {
           const newMessages = [...chat.messages, message];
-          console.log("New messages for chat:", newMessages);
           return {
             ...chat,
             messages: newMessages,
@@ -131,7 +127,6 @@ export default function ChatApp() {
         }
         return chat;
       });
-      console.log("Updated chats after adding message:", updated);
       return updated;
     });
   };
@@ -161,9 +156,6 @@ export default function ChatApp() {
       </div>
     );
   }
-
-  console.log("Current chat:", currentChat);
-  console.log("Current chat messages:", currentChat?.messages);
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">

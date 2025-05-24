@@ -52,10 +52,7 @@ export function ChatInterface({
   };
 
   // Debug: Log when chat changes
-  useEffect(() => {
-    console.log("ChatInterface received chat:", chat);
-    console.log("Chat messages:", chat.messages);
-  }, [chat]);
+  useEffect(() => {}, [chat]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -84,8 +81,6 @@ export function ChatInterface({
       timestamp: new Date(),
     };
 
-    console.log("Submitting user message:", userMessage);
-
     // Clear input immediately
     const currentInput = input.trim();
     setInput("");
@@ -110,8 +105,6 @@ export function ChatInterface({
         content: msg.content,
       }));
 
-      console.log("Sending to API:", chatHistory);
-
       const response = await chatApi.sendMessage(chatHistory);
 
       const assistantMessage: Message = {
@@ -123,8 +116,6 @@ export function ChatInterface({
           "Sorry, I could not process your request.",
         timestamp: new Date(),
       };
-
-      console.log("Received response:", assistantMessage);
 
       onAddMessage(chat.id, assistantMessage);
     } catch (error) {
@@ -294,8 +285,6 @@ export function ChatInterface({
     ),
   };
 
-  console.log("Rendering messages:", chat.messages);
-
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
@@ -374,7 +363,6 @@ export function ChatInterface({
           ) : (
             <AnimatePresence>
               {chat.messages.map((message, index) => {
-                console.log("Rendering message:", message);
                 return (
                   <motion.div
                     key={message.id}
