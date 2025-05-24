@@ -48,7 +48,7 @@ def health():
 @app.route("/api/agents", methods=["GET"])
 def agent_status():
     return jsonify({
-        "available_agents": ["TutorAgent", "MathAgent", "PhysicsAgent"],
+        "available_agents": ["TutorAgent", "MathAgent", "PhysicsAgent", "ChemistryAgent", "HistoryAgent"],
         "status": "all agents loaded"
     })
 

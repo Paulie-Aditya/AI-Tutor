@@ -247,10 +247,10 @@ export function ChatInterface({
   };
 
   const suggestedPrompts = [
-    "Explain quantum physics in simple terms",
-    "Help me solve this math problem",
-    "What's the best way to learn programming?",
-    "Summarize the key concepts of machine learning",
+    "Why do objects fall at the same rate regardless of their mass?",
+    "How do you calculate the derivative of a function like f(x) = x² + 3x?",
+    "What happens when you mix an acid with a base?",
+    "What were the main causes of World War I?",
   ];
 
   // Custom markdown components for better styling

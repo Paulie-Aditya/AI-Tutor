@@ -1,5 +1,7 @@
 from .math_agent import MathAgent
 from .physics_agent import PhysicsAgent
+from .chemistry_agent import ChemistryAgent
+from .history_agent import HistoryAgent
 from .base_agent import BaseAgent
 import json
 
@@ -14,15 +16,19 @@ class TutorAgent(BaseAgent):
             Available agents:
             - MathAgent: Arithmetic, algebra, calculus, equations, statistics.
             - PhysicsAgent: Force, motion, energy, mass, velocity, Newton's laws.
+            - ChemistryAgent: Atoms, molecules, reactions, periodic table, acids and bases.
+            - HistoryAgent: Historical events, timelines, famous leaders, ancient civilizations.
 
             Respond in the following JSON format:
             {
-                "subject": "MathAgent" | "PhysicsAgent" | "Unknown",
+                "subject": "MathAgent" | "PhysicsAgent" | ChemistryAgent | HistoryAgent | "Unknown",
                 "reason": "<short explanation>"
             }
         """)
         self.math_agent = MathAgent()
         self.physics_agent = PhysicsAgent()
+        self.chemistry_agent = ChemistryAgent()
+        self.history_agent = HistoryAgent()
 
     def route(self, messages: list[dict]) -> dict:
         # Trim message history to fit under token and message limit
@@ -51,7 +57,7 @@ class TutorAgent(BaseAgent):
 
                 Respond in this JSON format:
                 {{
-                    "subject": "MathAgent" | "PhysicsAgent" | "Unknown",
+                    "subject": "MathAgent" | "PhysicsAgent" | ChemistryAgent | HistoryAgent | "Unknown",
                     "reason": "<short explanation>"
                 }}
                 """
@@ -70,8 +76,13 @@ class TutorAgent(BaseAgent):
                 result = self.math_agent.respond(reason + user_query)
             elif subject == "PhysicsAgent":
                 result = self.physics_agent.respond(reason + user_query)
+            elif subject == "ChemistryAgent":
+                result = self.chemistry_agent.respond(reason + user_query)
+            elif subject == "HistoryAgent":
+                result = self.history_agent.respond(reason + user_query)    
             else:
-                result = "This question is out of scope for me, please try another question."
+                result = BaseAgent("BaseAgent", "This question is out of scope/not related to subjects, respond accordingly and stay on topic itself and try not to explain/expand on it too much. Politely ask them to stay on topic and show what all agents you have. (Math, Physics, History, Chemistry), Do respond politely to greetings and just try to steer the conversation in the right direction if user is going offtopic.").respond(user_query)
+                # result = "This question is out of scope for me, please try another question."
 
             return {
                 "agent": subject,
