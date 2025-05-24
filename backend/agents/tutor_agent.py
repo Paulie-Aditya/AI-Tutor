@@ -3,7 +3,7 @@ from .physics_agent import PhysicsAgent
 from .base_agent import BaseAgent
 import json
 
-MAX_TOKENS_APPROX = 5000 * 4  # ~4 chars per token (safe estimate)
+# MAX_TOKENS_APPROX = 5000 * 4  # ~4 chars per token (safe estimate)
 MAX_MESSAGES = 10
 
 class TutorAgent(BaseAgent):
@@ -46,7 +46,7 @@ class TutorAgent(BaseAgent):
         classification_prompt = trimmed_messages + [
             {
                 "role": "user",
-                "content": f"""Classify the following query:
+                "content": f"""Classify the following query (Keep in mind the previous messages as well):
                 Query: {user_query}
 
                 Respond in this JSON format:
@@ -67,9 +67,9 @@ class TutorAgent(BaseAgent):
             reason = data.get("reason", "No reason provided.")
 
             if subject == "MathAgent":
-                result = self.math_agent.respond(user_query)
+                result = self.math_agent.respond(reason + user_query)
             elif subject == "PhysicsAgent":
-                result = self.physics_agent.respond(user_query)
+                result = self.physics_agent.respond(reason + user_query)
             else:
                 result = "This question is out of scope for me, please try another question."
 
@@ -92,9 +92,9 @@ class TutorAgent(BaseAgent):
             messages = messages[-MAX_MESSAGES:]
 
         # Then limit by token size approximation
-        total_chars = sum(len(m["content"]) for m in messages)
-        while total_chars > MAX_TOKENS_APPROX and len(messages) > 1:
-            messages.pop(0)
-            total_chars = sum(len(m["content"]) for m in messages)
+        # total_chars = sum(len(m["content"]) for m in messages)
+        # while total_chars > MAX_TOKENS_APPROX and len(messages) > 1:
+        #     messages.pop(0)
+        #     total_chars = sum(len(m["content"]) for m in messages)
 
         return messages
