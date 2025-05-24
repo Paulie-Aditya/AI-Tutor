@@ -21,6 +21,7 @@ import { chatApi } from "@/utils/api";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TypingMessage } from "@/components/typing-message";
 
 interface ChatInterfaceProps {
   chat: Chat;
@@ -28,7 +29,7 @@ interface ChatInterfaceProps {
   onUpdateTitle: (chatId: string, firstMessage: string) => void;
 }
 
-// Simple math renderer component that works reliably
+// Simple math renderer component
 const MathRenderer = ({
   children,
   display = false,
@@ -39,29 +40,21 @@ const MathRenderer = ({
   const [rendered, setRendered] = useState<string>("");
 
   useEffect(() => {
-    // Ensure children is a string
     const mathContent = String(children || "");
-
-    // Simple math rendering for common cases
     const processedContent = mathContent
-      // Superscripts
       .replace(/\^(\w+|\{[^}]+\})/g, (match, exp) => {
         const cleanExp = exp.replace(/[{}]/g, "");
         return `<sup>${cleanExp}</sup>`;
       })
-      // Subscripts
       .replace(/_(\w+|\{[^}]+\})/g, (match, sub) => {
         const cleanSub = sub.replace(/[{}]/g, "");
         return `<sub>${cleanSub}</sub>`;
       })
-      // Fractions
       .replace(
         /\\frac\{([^}]+)\}\{([^}]+)\}/g,
         '<span class="fraction"><span class="numerator">$1</span><span class="denominator">$2</span></span>'
       )
-      // Square roots
       .replace(/\\sqrt\{([^}]+)\}/g, "√($1)")
-      // Common symbols
       .replace(/\\int/g, "∫")
       .replace(/\\sum/g, "∑")
       .replace(/\\prod/g, "∏")
@@ -118,6 +111,10 @@ export function ChatInterface({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [typingMessage, setTypingMessage] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -133,13 +130,18 @@ export function ChatInterface({
     }
   };
 
-  // Debug: Log when chat changes
-  useEffect(() => {}, [chat]);
-
-  // Auto-scroll to bottom when new messages are added
+  // Auto-scroll to bottom when new messages are added or during typing
   useEffect(() => {
     scrollToBottom();
-  }, [chat.messages]);
+  }, [chat.messages, typingMessage]);
+
+  // Continuous scroll during typing animation
+  useEffect(() => {
+    if (typingMessage) {
+      const interval = setInterval(scrollToBottom, 100);
+      return () => clearInterval(interval);
+    }
+  }, [typingMessage]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -163,15 +165,11 @@ export function ChatInterface({
       timestamp: new Date(),
     };
 
-    // Clear input immediately
     const currentInput = input.trim();
     setInput("");
 
     // Add user message immediately
     onAddMessage(chat.id, userMessage);
-
-    // Scroll to bottom immediately after adding user message
-    setTimeout(scrollToBottom, 100);
 
     // Update chat title if this is the first message
     if (chat.messages.length === 0) {
@@ -181,37 +179,50 @@ export function ChatInterface({
     setIsLoading(true);
 
     try {
-      // Prepare chat history for API (include the new user message)
+      // Prepare chat history for API
       const chatHistory = [...chat.messages, userMessage].map((msg) => ({
         role: msg.role,
         content: msg.content,
       }));
 
       const response = await chatApi.sendMessage(chatHistory);
+      const responseContent =
+        response.message ||
+        response.response ||
+        "Sorry, I could not process your request.";
 
+      // Start typing animation
+      const assistantMessageId = `assistant-${Date.now()}`;
+      setTypingMessage({
+        id: assistantMessageId,
+        content: responseContent,
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorContent =
+        "Sorry, there was an error processing your request. Please try again.";
+
+      const assistantMessageId = `error-${Date.now()}`;
+      setTypingMessage({
+        id: assistantMessageId,
+        content: errorContent,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTypingComplete = () => {
+    if (typingMessage) {
       const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
+        id: typingMessage.id,
         role: "assistant",
-        content:
-          response.message ||
-          response.response ||
-          "Sorry, I could not process your request.",
+        content: typingMessage.content,
         timestamp: new Date(),
       };
 
       onAddMessage(chat.id, assistantMessage);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: "assistant",
-        content:
-          "Sorry, there was an error processing your request. Please try again.",
-        timestamp: new Date(),
-      };
-      onAddMessage(chat.id, errorMessage);
-    } finally {
-      setIsLoading(false);
+      setTypingMessage(null);
     }
   };
 
@@ -235,7 +246,6 @@ export function ChatInterface({
   const formatTime = (date: Date | string) => {
     const dateObj = date instanceof Date ? date : new Date(date);
 
-    // Check if the date is valid
     if (isNaN(dateObj.getTime())) {
       return "Unknown";
     }
@@ -255,7 +265,6 @@ export function ChatInterface({
 
   // Custom markdown components for better styling
   const markdownComponents = {
-    // Headings
     h1: ({ children }: any) => (
       <h1 className="text-xl font-bold mb-3 text-slate-900 dark:text-slate-100">
         {children}
@@ -271,13 +280,9 @@ export function ChatInterface({
         {children}
       </h3>
     ),
-
-    // Paragraphs
     p: ({ children }: any) => (
       <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>
     ),
-
-    // Fixed Lists - better spacing and alignment
     ul: ({ children }: any) => (
       <ul className="list-disc mb-3 space-y-1 pl-6 [&>li]:leading-relaxed">
         {children}
@@ -291,16 +296,12 @@ export function ChatInterface({
     li: ({ children }: any) => (
       <li className="leading-relaxed [&>p]:mb-1 [&>p]:inline">{children}</li>
     ),
-
-    // Text formatting
     strong: ({ children }: any) => (
       <strong className="font-semibold text-slate-900 dark:text-slate-100">
         {children}
       </strong>
     ),
     em: ({ children }: any) => <em className="italic">{children}</em>,
-
-    // Code
     code: ({ children, className }: any) => {
       const isInline = !className;
       if (isInline) {
@@ -318,15 +319,11 @@ export function ChatInterface({
         </pre>
       );
     },
-
-    // Blockquotes
     blockquote: ({ children }: any) => (
       <blockquote className="border-l-4 border-violet-300 dark:border-violet-600 pl-4 py-2 mb-3 bg-violet-50 dark:bg-violet-950/20 rounded-r">
         {children}
       </blockquote>
     ),
-
-    // Links
     a: ({ children, href }: any) => (
       <a
         href={href}
@@ -337,8 +334,6 @@ export function ChatInterface({
         {children}
       </a>
     ),
-
-    // Tables
     table: ({ children }: any) => (
       <div className="overflow-x-auto mb-3">
         <table className="min-w-full border-collapse border border-slate-300 dark:border-slate-600">
@@ -369,10 +364,7 @@ export function ChatInterface({
 
   // Process message content to handle math
   const processMessageContent = (content: string) => {
-    // Ensure content is a string
     const textContent = String(content || "");
-
-    // Split content by math delimiters and process each part
     const parts = textContent.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/g);
 
     return parts.map((part, index) => {
@@ -424,7 +416,7 @@ export function ChatInterface({
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="max-w-4xl mx-auto space-y-6">
-          {chat.messages.length === 0 ? (
+          {chat.messages.length === 0 && !typingMessage ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -496,92 +488,114 @@ export function ChatInterface({
             </motion.div>
           ) : (
             <AnimatePresence>
-              {chat.messages.map((message, index) => {
-                return (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`flex gap-4 ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {message.role === "assistant" && (
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                          <Sparkles className="h-5 w-5 text-white" />
-                        </div>
-                      </div>
-                    )}
-
-                    <div
-                      className={`group max-w-[75%] ${
-                        message.role === "user" ? "order-1" : ""
-                      }`}
-                    >
-                      <motion.div
-                        initial={{ scale: 0.95 }}
-                        animate={{ scale: 1 }}
-                        className={`p-4 rounded-2xl shadow-sm ${
-                          message.role === "user"
-                            ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white"
-                            : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                        }`}
-                      >
-                        {message.role === "user" ? (
-                          <div className="whitespace-pre-wrap break-words leading-relaxed">
-                            {message.content}
-                          </div>
-                        ) : (
-                          <div className="prose prose-sm max-w-none dark:prose-invert prose-violet [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                            {processMessageContent(message.content)}
-                          </div>
-                        )}
-                      </motion.div>
-
-                      <div
-                        className={`flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400 ${
-                          message.role === "user"
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <span>{formatTime(message.timestamp)}</span>
-                        {message.role === "assistant" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            onClick={() =>
-                              copyToClipboard(message.content, message.id)
-                            }
-                          >
-                            {copiedMessageId === message.id ? (
-                              <Check className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </Button>
-                        )}
+              {chat.messages.map((message, index) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`flex gap-4 ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  {message.role === "assistant" && (
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                        <Sparkles className="h-5 w-5 text-white" />
                       </div>
                     </div>
+                  )}
 
-                    {message.role === "user" && (
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
-                          <User className="h-5 w-5 text-white" />
+                  <div
+                    className={`group max-w-[75%] ${
+                      message.role === "user" ? "order-1" : ""
+                    }`}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.95 }}
+                      animate={{ scale: 1 }}
+                      className={`p-4 rounded-2xl shadow-sm ${
+                        message.role === "user"
+                          ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white"
+                          : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      {message.role === "user" ? (
+                        <div className="whitespace-pre-wrap break-words leading-relaxed">
+                          {message.content}
                         </div>
+                      ) : (
+                        <div className="prose prose-sm max-w-none dark:prose-invert prose-violet [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                          {processMessageContent(message.content)}
+                        </div>
+                      )}
+                    </motion.div>
+
+                    <div
+                      className={`flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400 ${
+                        message.role === "user"
+                          ? "justify-end"
+                          : "justify-start"
+                      }`}
+                    >
+                      <span>{formatTime(message.timestamp)}</span>
+                      {message.role === "assistant" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          onClick={() =>
+                            copyToClipboard(message.content, message.id)
+                          }
+                        >
+                          {copiedMessageId === message.id ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {message.role === "user" && (
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg">
+                        <User className="h-5 w-5 text-white" />
                       </div>
-                    )}
-                  </motion.div>
-                );
-              })}
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+
+              {/* Typing Message */}
+              {typingMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-4 justify-start"
+                >
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-r from-violet-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                  <div className="group max-w-[75%]">
+                    <div className="p-4 rounded-2xl shadow-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <TypingMessage
+                        content={typingMessage.content}
+                        onComplete={handleTypingComplete}
+                        speed={20}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
           )}
 
           <AnimatePresence>
-            {isLoading && (
+            {isLoading && !typingMessage && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
