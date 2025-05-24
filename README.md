@@ -5,7 +5,7 @@ A sophisticated educational platform powered by Google's Gemini AI, featuring sp
 ## 🚀 Live Demo
 
 - **Frontend**: [https://multi-ai-tutor.vercel.app/](https://multi-ai-tutor.vercel.app/)
-- **Backend API**: [Render Deployment](https://your-backend-url.onrender.com/)
+- **Backend API**: [Render Deployment](https://ai-tutor-multi-agent.onrender.com)
 
 ## 📋 Table of Contents
 
